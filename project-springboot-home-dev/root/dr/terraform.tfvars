@@ -1,0 +1,5 @@
+key_name             = "Mykey"
+my_ip_cidr           = "0.0.0.0/0"
+db_password          = "qwer1234"
+springboot_ami_id    = "ami-0ecd90ec6999929bf"
+tailscale_auth_key   = "tskey-auth-k1T2V3iYPP11CNTRL-gGHYpv1D4vQJ98ANjmD2vQhuivsYDgoTF"
