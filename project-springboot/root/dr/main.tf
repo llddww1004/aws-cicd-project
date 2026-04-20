@@ -122,6 +122,9 @@ module "compute" {
 
   db_password              = var.db_password
   onprem_db_ip             = var.onprem_db_ip
+  rds_endpoint             = module.database.rds_endpoint
+
+  depends_on = [module.database]
 }
 
 ############################
