@@ -266,6 +266,8 @@ gtid-mode=ON
 enforce-gtid-consistency=ON
 MYCNF
 
+echo '!includedir /etc/my.cnf.d/' >> /etc/my.cnf
+
 systemctl enable mysqld
 systemctl start mysqld
 sleep 10
