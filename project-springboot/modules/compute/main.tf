@@ -256,6 +256,18 @@ resource "aws_instance" "db_ec2" {
 dnf update -y
 rpm -Uvh https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm
 dnf install -y mysql-community-server --nogpgcheck
+
+cat > /etc/my.cnf.d/replication.cnf << 'MYCNF'
+[mysqld]
+server-id=2
+log-bin=mysql-bin
+binlog-format=ROW
+gtid-mode=ON
+enforce-gtid-consistency=ON
+MYCNF
+
+systemctl restart mysqld
+sleep 10
 systemctl enable mysqld
 systemctl start mysqld
 sleep 10
