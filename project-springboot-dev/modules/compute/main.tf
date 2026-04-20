@@ -254,14 +254,23 @@ resource "aws_instance" "db_ec2" {
   user_data = <<-EOF
 #!/bin/bash
 dnf update -y
+dnf install -y mysql-server
+systemctl enable mysqld
+systemctl start mysqld
 curl -fsSL https://tailscale.com/install.sh | sh
 echo 'net.ipv4.ip_forward = 1' >> /etc/sysctl.conf
 sysctl -p
 tailscale up --authkey=${var.tailscale_auth_key} --accept-routes
-sleep 15
-iptables -t nat -A PREROUTING -p tcp --dport 3306 -j DNAT --to-destination 100.72.42.25:3306
-iptables -A FORWARD -p tcp -d 100.72.42.25 --dport 3306 -j ACCEPT
-iptables -t nat -A POSTROUTING -j MASQUERADE
+sleep 30
+mysql -u root -e "SET GLOBAL server_id=2;"
+mysql -u root -e "
+CHANGE MASTER TO
+  MASTER_HOST='${var.onprem_db_ip}',
+  MASTER_USER='repl_user',
+  MASTER_PASSWORD='${var.db_password}',
+  MASTER_AUTO_POSITION=1;
+START SLAVE;
+"
 EOF
 
   root_block_device {

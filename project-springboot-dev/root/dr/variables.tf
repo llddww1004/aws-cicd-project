@@ -184,3 +184,8 @@ variable "db_ec2_subnet_cidr" {
   default     = "10.0.61.0/24"
 }
 
+variable "onprem_db_ip" {
+  description = "온프렘 DB Tailscale IP"
+  type        = string
+}
+

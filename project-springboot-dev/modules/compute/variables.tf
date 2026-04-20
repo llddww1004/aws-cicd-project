@@ -182,3 +182,14 @@ variable "db_ec2_sg_id" {
   description = "DB EC2 Security Group ID"
   type        = string
 }
+
+variable "db_password" {
+  description = "DB 비밀번호"
+  type        = string
+  sensitive   = true
+}
+
+variable "onprem_db_ip" {
+  description = "온프렘 DB Tailscale IP"
+  type        = string
+}
