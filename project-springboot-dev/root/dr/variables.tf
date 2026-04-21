@@ -189,3 +189,8 @@ variable "onprem_db_ip" {
   type        = string
 }
 
+variable "db_ec2_private_ip" {
+  description = "DB EC2 고정 프라이빗 IP"
+  type        = string
+}
+

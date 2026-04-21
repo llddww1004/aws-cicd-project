@@ -198,3 +198,8 @@ variable "rds_endpoint" {
   description = "RDS 엔드포인트"
   type        = string
 }
+
+variable "db_ec2_private_ip" {
+  description = "DB EC2 고정 프라이빗 IP (Stop/Start 대응)"
+  type        = string
+}

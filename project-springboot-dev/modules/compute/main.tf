@@ -250,6 +250,7 @@ resource "aws_instance" "db_ec2" {
   subnet_id              = var.db_ec2_subnet_id
   vpc_security_group_ids = [var.db_ec2_sg_id]
   key_name               = var.key_name
+  private_ip             = var.db_ec2_private_ip
 
   user_data = <<-EOF
 #!/bin/bash
