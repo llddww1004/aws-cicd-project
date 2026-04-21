@@ -301,6 +301,7 @@ mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
     'repl_user',
     '${var.db_password}',
     '',
+    0,
     0
   );"
 
