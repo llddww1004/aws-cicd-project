@@ -314,33 +314,41 @@ sleep 30
 ############################
 # Phase 4: Replication 설정
 ############################
-# 온프렘 mysql/sys 스키마 DDL이 RDS까지 전파되지 않도록 필터링
+# Step 1: 온프렘 → DB EC2 초기 dump (GTID=OFF)
+mysqldump -h ${var.onprem_db_ip} \
+  -u repl_user -p"${var.db_password}" \
+  --single-transaction --set-gtid-purged=OFF \
+  --databases appdb \
+  | mysql -u root -p"${var.db_password}"
+
+# Step 2: 온프렘 → DB EC2 Replication 시작
 mysql -u root -p"${var.db_password}" -e "
-CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = (mysql, sys, information_schema, performance_schema);
+CHANGE MASTER TO
+  MASTER_HOST='${var.onprem_db_ip}',
+  MASTER_USER='repl_user',
+  MASTER_PASSWORD='${var.db_password}',
+  MASTER_AUTO_POSITION=1;
+START REPLICA;
 "
 
-# 온프렘 → DB EC2 replication 시작
-mysql -u root -p"${var.db_password}" -e "CHANGE MASTER TO MASTER_HOST='${var.onprem_db_ip}', MASTER_USER='repl_user', MASTER_PASSWORD='${var.db_password}', MASTER_AUTO_POSITION=1; START REPLICA;"
-
-# 온프렘 → RDS 초기 데이터 dump
+# Step 3: 온프렘 → RDS 초기 dump (GTID=OFF)
 mysqldump -h ${var.onprem_db_ip} \
   -u repl_user -p"${var.db_password}" \
   --single-transaction --set-gtid-purged=OFF \
   appdb \
-  | mysql -h ${var.rds_endpoint} \
-  -u admin -p"${var.db_password}" appdb
+  | mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" appdb
 
-# 기존 replication 상태 초기화 (EC2 재생성 시 안전)
+# Step 4: RDS Slave 초기화
 mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
   -e "CALL mysql.rds_reset_external_master;"
 
-# DB EC2 자기 IP 가져오기 (IMDSv2 토큰 방식)
+# Step 5: DB EC2 IP 조회 (IMDSv2)
 TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
   -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 DB_EC2_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
   http://169.254.169.254/latest/meta-data/local-ipv4)
 
-# RDS Slave 설정 (GTID auto position, 어제 수동 성공 버전)
+# Step 6: RDS Slave 설정
 mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
   -e "CALL mysql.rds_set_external_master_with_auto_position(
     '$DB_EC2_IP',
@@ -351,6 +359,7 @@ mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
     0
   );"
 
+# Step 7: RDS Replication 시작
 mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
   -e "CALL mysql.rds_start_replication;"
 EOF
