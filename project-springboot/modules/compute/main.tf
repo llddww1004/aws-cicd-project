@@ -312,6 +312,7 @@ sysctl -p
 tailscale up --authkey=${var.tailscale_auth_key} --accept-routes
 sleep 30
 
+%{~ if var.dr_mode == false ~}
 ############################
 # Phase 4: Replication 설정
 ############################
@@ -363,6 +364,13 @@ mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
 # Step 7: RDS Replication 시작
 mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
   -e "CALL mysql.rds_start_replication;"
+%{~ else ~}
+############################
+# Phase 4: DR 모드 (Replication 설정 스킵)
+############################
+echo "[DR 모드] 온프렘 장애 상황 - Phase 4 Replication 설정 스킵"
+echo "[DR 모드] RDS가 Master로 승격된 상태 유지"
+%{~ endif ~}
 EOF
 
   root_block_device {
