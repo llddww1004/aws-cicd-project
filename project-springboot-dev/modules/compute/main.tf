@@ -293,14 +293,20 @@ mysqldump -h ${var.onprem_db_ip} \
   | mysql -h ${var.rds_endpoint} \
   -u admin -p"${var.db_password}" appdb
 
-# RDS Slave 설정 (온프렘을 Master로)
+# 기존 replication 상태 초기화 (EC2 재생성 시 안전)
 mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
-  -e "CALL mysql.rds_set_external_master(
-    '${var.onprem_db_ip}',
+  -e "CALL mysql.rds_reset_external_master;"
+
+# DB EC2 자기 IP 가져오기
+DB_EC2_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+
+# RDS Slave 설정 (GTID auto position, 어제 수동 성공 버전)
+mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
+  -e "CALL mysql.rds_set_external_master_with_auto_position(
+    '$DB_EC2_IP',
     3306,
     'repl_user',
     '${var.db_password}',
-    '',
     0,
     0
   );"
