@@ -42,7 +42,7 @@ resource "aws_lb_target_group" "haproxy" {
   vpc_id   = var.vpc_id
 
   health_check {
-    path = "/"
+    path = "/actuator/health"
     port = "80"
   }
 }
