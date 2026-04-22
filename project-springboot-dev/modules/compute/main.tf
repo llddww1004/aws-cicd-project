@@ -316,10 +316,12 @@ sleep 30
 ############################
 # Phase 4: Replication 설정
 ############################
-# Step 1: 온프렘 → DB EC2 초기 dump (GTID=OFF)
+# Step 1: 온프렘 → DB EC2 초기 dump (GTID=ON으로 1062 Duplicate 에러 방지)
+# --set-gtid-purged=ON: dump에 SET GTID_PURGED 포함 → DB EC2가 이미 실행한 GTID로 인식
+# --source-data=2: dump에 binlog 위치 코멘트 포함 (참고용)
 mysqldump -h ${var.onprem_db_ip} \
   -u repl_user -p"${var.db_password}" \
-  --single-transaction --set-gtid-purged=OFF \
+  --single-transaction --source-data=2 --set-gtid-purged=ON \
   --databases appdb \
   | mysql -u root -p"${var.db_password}"
 
