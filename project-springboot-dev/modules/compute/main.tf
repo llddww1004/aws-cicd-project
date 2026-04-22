@@ -18,13 +18,13 @@ resource "aws_lb" "app" {
 ############################
 resource "aws_lb_target_group" "springboot" {
   name     = "${var.project_name}-springboot-tg"
-  port     = 80
+  port     = 8080
   protocol = "HTTP"
   vpc_id   = var.vpc_id
 
   health_check {
-    path = "/"
-    port = "80"
+    path = "/actuator/health"
+    port = "8080"
   }
 
   tags = merge(var.common_tags, {
@@ -177,7 +177,7 @@ frontend http_front
 backend onprem_back
     balance roundrobin
     option  httpchk GET /
-    server  onprem 100.79.94.82:80 check
+    server  onprem 100.79.94.82:8080 check
 HAPROXY
 systemctl enable haproxy
 systemctl restart haproxy
