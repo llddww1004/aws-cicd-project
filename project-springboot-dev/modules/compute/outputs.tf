@@ -16,6 +16,11 @@ output "alb_arn" {
   value       = aws_lb.app.arn
 }
 
+output "alb_listener_arn" {
+  description = "ALB Listener ARN (DR Failover 시 TG 전환 확인용)"
+  value       = aws_lb_listener.http.arn
+}
+
 output "springboot_target_group_arn" {
   description = "SpringBoot Target Group ARN"
   value       = aws_lb_target_group.springboot.arn
@@ -32,6 +37,11 @@ output "haproxy_target_group_arn" {
 output "launch_template_id" {
   description = "SpringBoot Launch Template ID"
   value       = aws_launch_template.springboot.id
+}
+
+output "launch_template_latest_version" {
+  description = "SpringBoot Launch Template 최신 버전 번호 (Rollback 시 -1 계산용)"
+  value       = aws_launch_template.springboot.latest_version
 }
 
 output "autoscaling_group_name" {
