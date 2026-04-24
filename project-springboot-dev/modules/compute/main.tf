@@ -351,12 +351,25 @@ CHANGE MASTER TO
 START REPLICA;
 "
 
-# Step 3: 온프렘 → RDS 초기 dump (GTID=OFF)
-mysqldump -h ${var.onprem_db_ip} \
-  -u repl_user -p"${var.db_password}" \
-  --single-transaction --set-gtid-purged=OFF \
-  appdb \
-  | mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" appdb
+# ============================================================
+# Step 3: DB EC2 → RDS 초기 dump + GTID Skip (Error 1236 방지)
+# ============================================================
+# 3-1. DB EC2의 현재 GTID 상태 캡처 (RDS에게 "여기까진 이미 처리됨"으로 알릴 값)
+GTID_EXECUTED=$(mysql -u root -p"${var.db_password}" -sN \
+  -e "SELECT @@GLOBAL.gtid_executed;" | tr -d '\n ')
+
+echo "[INFO] DB EC2 gtid_executed: $GTID_EXECUTED"
+
+# 3-2. DB EC2(localhost)에서 dump 생성 (GTID 정보 포함)
+mysqldump -u root -p"${var.db_password}" \
+  --single-transaction --source-data=2 --set-gtid-purged=ON \
+  --databases appdb > /tmp/rds_init.sql
+
+# 3-3. RDS admin은 SET @@GLOBAL.GTID_PURGED 실행 권한 없음 → 해당 라인 제거
+sed -i '/SET @@GLOBAL.GTID_PURGED/d' /tmp/rds_init.sql
+
+# 3-4. RDS에 dump 로드 (데이터만)
+mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" < /tmp/rds_init.sql
 
 # Step 4: RDS Slave 초기화
 mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
@@ -368,7 +381,7 @@ TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
 DB_EC2_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
   http://169.254.169.254/latest/meta-data/local-ipv4)
 
-# Step 6: RDS Slave 설정
+# Step 6: RDS external master 설정 (auto_position)
 mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
   -e "CALL mysql.rds_set_external_master_with_auto_position(
     '$DB_EC2_IP',
@@ -379,7 +392,20 @@ mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
     0
   );"
 
-# Step 7: RDS Replication 시작
+# Step 7: DB EC2의 현재 GTID까지 "이미 실행됨"으로 표시 (1236 방지 핵심)
+# ⚠️ rds_skip_transaction_with_gtid 가 GTID SET(uuid:1-100)을 허용하지 않을 수 있음.
+#    실패 시 || echo 로 경고만 남기고 진행 (start_replication 은 시도).
+#    실패 시 수동 대응 필요:
+#      (1) SHOW SLAVE STATUS\G 확인 (Last_IO_Error 1236)
+#      (2) GTID SET 을 단일 GTID로 split 후 반복 호출
+#      (3) 또는 rds_set_master_auto_position(0) + MASTER_LOG_FILE/POS 지정
+if [ -n "$GTID_EXECUTED" ]; then
+  mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
+    -e "CALL mysql.rds_skip_transaction_with_gtid('$GTID_EXECUTED');" || \
+    echo "[WARN] rds_skip_transaction_with_gtid 실패 — GTID SET 지원 안 할 수 있음. 로그 확인 필요."
+fi
+
+# Step 8: RDS Replication 시작
 mysql -h ${var.rds_endpoint} -u admin -p"${var.db_password}" \
   -e "CALL mysql.rds_start_replication;"
 %{~ else ~}
